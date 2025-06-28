@@ -32,24 +32,71 @@ pytest test_app.py
 
 ## API 文档
 
-### 创建二维码
+### 配置
 
-`POST /create_qrcode`
+应用程序从 `app.yaml` 读取图片配置。`app.yaml` 示例：
 
-请求体示例:
-```json
-{
-    "words": "https://example.com",
-    "picture": "background.gif",
-    "colorized": true
-}
+```yaml
+images:
+  - id: "image1"
+    name: "8820204ea82c4cf3bdc387acd4611d25.gif"
+  - id: "image2"
+    name: "another_image.png"
 ```
 
-### 获取二维码
+### 1. 列出可用图片
 
-`GET /get_qrcode/<qrcode_id>`
+- **端点**: `/dqr/list`
+- **方法**: `GET`
+- **描述**: 从 `app.yaml` 中检索配置的图片 ID 和名称列表。
+- **响应 (JSON)**:
+  ```json
+  [
+    {
+      "id": "image1",
+      "name": "8820204ea82c4cf3bdc387acd4611d25.gif"
+    },
+    {
+      "id": "image2",
+      "name": "another_image.png"
+    }
+  ]
+  ```
 
-返回二维码图片文件
+### 2. 创建二维码
+
+- **端点**: `/create_qrcode`
+- **方法**: `POST`
+- **描述**: 生成带有可选背景图的动态二维码。
+- **请求体 (JSON)**:
+  ```json
+  {
+    "words": "您的二维码内容 (例如，URL 或文本)",
+    "picture": "filename.gif",  // 可选: 背景图的文件名 (必须在项目根目录下的 'data' 文件夹中)
+    "colorized": true,       // 可选: 是否对二维码进行着色 (默认: false)
+    "contrast": 1.0,         // 可选: 背景图的对比度 (默认: 1.0)
+    "brightness": 1.0        // 可选: 背景图的亮度 (默认: 1.0)
+  }
+  ```
+- **`picture` 参数说明**:
+  - `picture` 参数应该是位于项目根目录下 `data` 文件夹中的图片文件名 (例如，`my_background.gif`)。
+  - 如果背景图是 `.gif` 文件，生成的二维码也将是 `.gif` 文件。否则，它将是 `.png` 文件。
+- **响应 (JSON)**:
+  ```json
+  {
+    "qrcode_id": "生成的二维码的唯一ID",
+    "qrcode_url": "/qrcodes/生成的二维码的唯一ID.png"
+  }
+  ```
+
+### 3. 获取二维码
+
+- **端点**: `/get_qrcode/<qrcode_id>`
+- **方法**: `GET`
+- **描述**: 检索先前生成的二维码图片。
+- **参数**:
+  - `qrcode_id`: 要检索的二维码的唯一 ID。
+- **响应**: 二维码图片 (PNG 或 GIF 格式)。
 
 myqr.run() 参数说明：
 ```

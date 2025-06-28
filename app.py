@@ -2,6 +2,7 @@ from flask import Flask, request, send_file, jsonify
 from MyQR import myqr
 import os
 import uuid
+import yaml
 
 app = Flask(__name__)
 
@@ -9,7 +10,29 @@ app = Flask(__name__)
 # 实际应用中，这些信息应该存储在数据库中
 qrcodes = {}
 
-@app.route('/create_qrcode', methods=['POST'])
+# 存储图片配置信息
+image_configs = []
+
+def load_image_configs():
+    config_path = os.path.join(os.getcwd(), 'app.yaml')
+    if os.path.exists(config_path):
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+            if config and 'images' in config:
+                global image_configs
+                image_configs = config['images']
+                print(f"Loaded image configs: {image_configs}")
+    else:
+        print(f"Warning: app.yaml not found at {config_path}")
+
+# 在应用启动时加载配置
+load_image_configs()
+
+@app.route('/dcode/list', methods=['GET'])
+def list_images():
+    return jsonify(image_configs), 200
+
+@app.route('/dcode/createqrcode', methods=['POST'])
 def create_qrcode():
     data = request.json
     if not data or 'words' not in data:
@@ -25,18 +48,35 @@ def create_qrcode():
     brightness = data.get('brightness', 1.0)
 
     qrcode_id = str(uuid.uuid4())
-    output_filename = f'{qrcode_id}.png'
+    picture = "8820204ea82c4cf3bdc387acd4611d25.gif"
+    # Determine output file extension based on picture extension
+    output_extension = '.png' # Default to PNG
+    if picture:
+        # Extract extension from the picture filename
+        _, ext = os.path.splitext(picture)
+        if ext:
+            output_extension = ext.lower()
+
+    output_filename = f'{qrcode_id}{output_extension}'
     output_path = os.path.join('qrcodes', output_filename)
 
     # 确保qrcodes目录存在
     os.makedirs('qrcodes', exist_ok=True)
+
+    # 处理图片路径
+    actual_picture_path = None
+    if picture:
+        # 假设图片在项目的data目录下
+        actual_picture_path = os.path.join(os.getcwd(), 'data', picture)
+        if not os.path.exists(actual_picture_path):
+            return jsonify({'error': f'Picture file not found: {actual_picture_path}'}), 400
 
     try:
         myqr.run(
             words=words,
             version=version,
             level=level,
-            picture=picture,
+            picture=actual_picture_path, # 使用处理后的图片路径
             colorized=colorized,
             contrast=contrast,
             brightness=brightness,
@@ -57,7 +97,7 @@ def create_qrcode():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/get_qrcode/<qrcode_id>', methods=['GET'])
+@app.route('/dcode/getqrcode/<qrcode_id>', methods=['GET'])
 def get_qrcode(qrcode_id):
     qrcode_info = qrcodes.get(qrcode_id)
     if not qrcode_info:
