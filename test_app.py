@@ -45,10 +45,12 @@ def test_list_images_success():
     url = f"{BASE_URL}/dqr/list"
     response = requests.get(url)
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    assert response.json()['ret']['code'] == 0
+    assert response.json()['ret']['msg'] == 'Success'
+    assert isinstance(response.json()['body']['images'], list)
     # Check if the dummy images from app.yaml are present
-    assert any(img['id'] == 'image1' for img in response.json())
-    assert any(img['name'] == '8820204ea82c4cf3bdc387acd4611d25.gif' for img in response.json())
+    assert any(img['id'] == 'image1' for img in response.json()['body']['images'])
+    assert any(img['name'] == '8820204ea82c4cf3bdc387acd4611d25.gif' for img in response.json()['body']['images'])
 
 def test_create_qrcode_success():
     url = f"{BASE_URL}/create_qrcode"
@@ -62,8 +64,10 @@ def test_create_qrcode_success():
     }
     response = requests.post(url, headers=headers, data=json.dumps(data))
     assert response.status_code == 200
-    assert 'qrcode_id' in response.json()
-    assert 'qrcode_url' in response.json()
+    assert response.json()['ret']['code'] == 0
+    assert response.json()['ret']['msg'] == 'QR Code created successfully'
+    assert 'qrcode_id' in response.json()['body']
+    assert 'qrcode_url' in response.json()['body']
 
 def test_create_qrcode_missing_words():
     url = f"{BASE_URL}/create_qrcode"
@@ -73,8 +77,8 @@ def test_create_qrcode_missing_words():
     }
     response = requests.post(url, headers=headers, data=json.dumps(data))
     assert response.status_code == 400
-    assert 'error' in response.json()
-    assert response.json()['error'] == 'Missing required parameter: words'
+    assert response.json()['ret']['code'] == 400
+    assert response.json()['ret']['msg'] == 'Missing required parameter: words'
 
 def test_create_qrcode_invalid_picture():
     url = f"{BASE_URL}/create_qrcode"
@@ -85,8 +89,8 @@ def test_create_qrcode_invalid_picture():
     }
     response = requests.post(url, headers=headers, data=json.dumps(data))
     assert response.status_code == 400
-    assert 'error' in response.json()
-    assert "Picture file not found" in response.json()['error']
+    assert response.json()['ret']['code'] == 400
+    assert "Picture file not found" in response.json()['ret']['msg']
 
 def test_get_qrcode_success():
     # First, create a QR code to get an ID
@@ -97,20 +101,22 @@ def test_get_qrcode_success():
     }
     create_response = requests.post(create_url, headers={'Content-Type': 'application/json'}, data=json.dumps(create_data))
     assert create_response.status_code == 200
-    qrcode_id = create_response.json()['qrcode_id']
+    create_data_body = create_response.json()['body']
+    qrcode_id = create_data_body['qrcode_id']
+    qrcode_url = create_data_body['qrcode_url']
 
     # Then, try to retrieve it
     get_url = f"{BASE_URL}/get_qrcode/{qrcode_id}"
     get_response = requests.get(get_url)
     assert get_response.status_code == 200
-    assert get_response.headers['Content-Type'] == 'image/png'
+    assert get_response.headers['Content-Type'] == f'image/{qrcode_url.split(".")[-1]}'
 
 def test_get_qrcode_not_found():
     url = f"{BASE_URL}/get_qrcode/non_existent_id"
     response = requests.get(url)
     assert response.status_code == 404
-    assert 'error' in response.json()
-    assert response.json()['error'] == 'QR Code not found'
+    assert response.json()['ret']['code'] == 404
+    assert response.json()['ret']['msg'] == 'QR Code not found'
 
 # Optional: Test with GIF image
 def test_create_qrcode_gif_success():
@@ -125,6 +131,8 @@ def test_create_qrcode_gif_success():
     }
     response = requests.post(url, headers=headers, data=json.dumps(data))
     assert response.status_code == 200
-    assert 'qrcode_id' in response.json()
-    assert 'qrcode_url' in response.json()
-    assert response.json()['qrcode_url'].endswith('.gif')
+    assert response.json()['ret']['code'] == 0
+    assert response.json()['ret']['msg'] == 'QR Code created successfully'
+    assert 'qrcode_id' in response.json()['body']
+    assert 'qrcode_url' in response.json()['body']
+    assert response.json()['body']['qrcode_url'].endswith('.gif')

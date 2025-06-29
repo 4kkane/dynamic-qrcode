@@ -3,6 +3,7 @@ from MyQR import myqr
 import os
 import uuid
 import yaml
+from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
 
@@ -12,6 +13,18 @@ qrcodes = {}
 
 # 存储图片配置信息
 image_configs = []
+
+def _build_response(code, msg, body=None, status_code=200):
+    if body is None:
+        body = {}
+    return jsonify({
+        "ret": {
+            "code": code,
+            "msg": msg,
+            "request_id": str(uuid.uuid4())
+        },
+        "body": body
+    }), status_code
 
 def load_image_configs():
     config_path = os.path.join(os.getcwd(), 'app.yaml')
@@ -30,13 +43,13 @@ load_image_configs()
 
 @app.route('/dcode/list', methods=['GET'])
 def list_images():
-    return jsonify(image_configs), 200
+    return _build_response(0, "Success", {"images": image_configs})
 
 @app.route('/dcode/createqrcode', methods=['POST'])
 def create_qrcode():
     data = request.json
     if not data or 'words' not in data:
-        return jsonify({'error': 'Missing words in request body'}), 400
+        return _build_response(400, "Missing required parameter: words", status_code=400)
 
     words = data['words']
     # 可选参数
@@ -45,31 +58,28 @@ def create_qrcode():
     picture = data.get('picture')
     colorized = data.get('colorized', False)
     contrast = data.get('contrast', 1.0)
-    brightness = data.get('brightness', 1.0)
+    brightness = data.get('brightness', 0.5)
 
     qrcode_id = str(uuid.uuid4())
-    picture = "8820204ea82c4cf3bdc387acd4611d25.gif"
     # Determine output file extension based on picture extension
     output_extension = '.png' # Default to PNG
+    actual_picture_path = None
+
     if picture:
         # Extract extension from the picture filename
         _, ext = os.path.splitext(picture)
         if ext:
             output_extension = ext.lower()
+        # 假设图片在项目的data目录下
+        actual_picture_path = os.path.join(os.getcwd(), 'data', picture)
+        if not os.path.exists(actual_picture_path):
+            return _build_response(400, f'Picture file not found: {actual_picture_path}')
 
     output_filename = f'{qrcode_id}{output_extension}'
     output_path = os.path.join('qrcodes', output_filename)
 
     # 确保qrcodes目录存在
     os.makedirs('qrcodes', exist_ok=True)
-
-    # 处理图片路径
-    actual_picture_path = None
-    if picture:
-        # 假设图片在项目的data目录下
-        actual_picture_path = os.path.join(os.getcwd(), 'data', picture)
-        if not os.path.exists(actual_picture_path):
-            return jsonify({'error': f'Picture file not found: {actual_picture_path}'}), 400
 
     try:
         myqr.run(
@@ -83,6 +93,7 @@ def create_qrcode():
             save_name=output_filename,
             save_dir='qrcodes'
         )
+        qrcode_url = f'/qrcodes/{output_filename}'
         qrcodes[qrcode_id] = {
             'words': words,
             'version': version,
@@ -91,23 +102,24 @@ def create_qrcode():
             'colorized': colorized,
             'contrast': contrast,
             'brightness': brightness,
-            'filepath': output_path
+            'filepath': output_path,
+            'qrcode_url': qrcode_url
         }
-        return jsonify({'qrcode_id': qrcode_id, 'message': 'QR Code created successfully'}), 201
+        return _build_response(0, "QR Code created successfully", {"qrcode_id": qrcode_id, "qrcode_url": qrcode_url})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _build_response(500, str(e), status_code=500)
 
 @app.route('/dcode/getqrcode/<qrcode_id>', methods=['GET'])
 def get_qrcode(qrcode_id):
     qrcode_info = qrcodes.get(qrcode_id)
     if not qrcode_info:
-        return jsonify({'error': 'QR Code not found'}), 404
+        return _build_response(404, "QR Code not found")
 
     filepath = qrcode_info['filepath']
     if os.path.exists(filepath):
-        return send_file(filepath, mimetype='image/png')
+        return send_file(filepath, mimetype=f'image/{qrcode_info["qrcode_url"].split(".")[-1]}')
     else:
-        return jsonify({'error': 'QR Code file not found on server'}), 500
+        return _build_response(404, "QR Code image file not found on server")
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

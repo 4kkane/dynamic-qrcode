@@ -51,16 +51,25 @@ images:
 - **描述**: 从 `app.yaml` 中检索配置的图片 ID 和名称列表。
 - **响应 (JSON)**:
   ```json
-  [
-    {
-      "id": "image1",
-      "name": "8820204ea82c4cf3bdc387acd4611d25.gif"
+  {
+    "ret": {
+      "code": 0,
+      "msg": "Success",
+      "request_id": "string"
     },
-    {
-      "id": "image2",
-      "name": "another_image.png"
+    "body": {
+      "images": [
+        {
+          "id": "image1",
+          "name": "8820204ea82c4cf3bdc387acd4611d25.gif"
+        },
+        {
+          "id": "image2",
+          "name": "another_image.png"
+        }
+      ]
     }
-  ]
+  }
   ```
 
 ### 2. 创建二维码
@@ -78,16 +87,38 @@ images:
     "brightness": 1.0        // 可选: 背景图的亮度 (默认: 1.0)
   }
   ```
+- **请求示例 (cURL)**:
+  ```bash
+  curl --location --request POST 'http://127.0.0.1:5000/create_qrcode' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+      "words": "https://github.com/4kkane",
+      "picture": "e51e4cdf847e4ee096585ff5a43a643f.gif",
+      "colorized": true
+  }'
+  ```
+
+![示例二维码](qrcodes/68317b54-4292-4b80-85c5-fb1ac73602d0.gif)
+
 - **`picture` 参数说明**:
   - `picture` 参数应该是位于项目根目录下 `data` 文件夹中的图片文件名 (例如，`my_background.gif`)。
   - 如果背景图是 `.gif` 文件，生成的二维码也将是 `.gif` 文件。否则，它将是 `.png` 文件。
 - **响应 (JSON)**:
   ```json
   {
-    "qrcode_id": "生成的二维码的唯一ID",
-    "qrcode_url": "/qrcodes/生成的二维码的唯一ID.png"
+    "ret": {
+      "code": 0,
+      "msg": "QR Code created successfully",
+      "request_id": "string"
+    },
+    "body": {
+      "qrcode_id": "生成的二维码的唯一ID",
+      "qrcode_url": "/qrcodes/生成的二维码的唯一ID.png"
+    }
   }
   ```
+
+
 
 ### 3. 获取二维码
 
