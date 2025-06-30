@@ -7,34 +7,52 @@
 - 生成带有动态背景图的二维码
 - 提供创建二维码的API接口
 - 提供查询和获取二维码的API接口
+- 提供一个简单的H5页面用于生成和展示动态二维码
 
 ## 安装
 
 1. 克隆仓库
-2. 安装依赖:
+2. 安装后端依赖:
    ```
-   pip install -r requirements.txt
+   pip install -r server/requirements.txt
+   ```
+3. 安装前端依赖:
+   ```bash
+   cd web/vue_app
+   npm install
    ```
 
 ## 运行
 
-```
-python app.py
-```
+1. 启动后端服务:
+   ```bash
+   python server/app.py
+   ```
+2. 构建并启动前端服务:
+   ```bash
+   cd web/vue_app
+   npm run build
+   # 构建完成后，静态文件会生成在 web/dist 目录下
+   # 你可以通过任何静态文件服务器（例如 Nginx, Apache, 或 Python 的 http.server）来部署 web/dist 目录
+   ```
 
 ## 运行测试
 
-确保 Flask 应用正在运行（通过 `python app.py` 启动）。
+确保 Flask 应用正在运行（通过 `python server/app.py` 启动）。
 
 ```bash
-pytest test_app.py
+pytest server/test_app.py
 ```
+
+## 访问 H5 页面
+
+在完成前端构建后，通过浏览器访问 `web/dist/index.html` 文件即可。
 
 ## API 文档
 
 ### 配置
 
-应用程序从 `app.yaml` 读取图片配置。`app.yaml` 示例：
+应用程序从 `server/app.yaml` 读取图片配置。`app.yaml` 示例：
 
 ```yaml
 images:
@@ -48,7 +66,7 @@ images:
 
 - **端点**: `/dqr/list`
 - **方法**: `GET`
-- **描述**: 从 `app.yaml` 中检索配置的图片 ID 和名称列表。
+- **描述**: 从 `server/app.yaml` 中检索配置的图片 ID 和名称列表。
 - **响应 (JSON)**:
   ```json
   {
@@ -101,7 +119,7 @@ images:
 ![示例二维码](qrcodes/68317b54-4292-4b80-85c5-fb1ac73602d0.gif)
 
 - **`picture` 参数说明**:
-  - `picture` 参数应该是位于项目根目录下 `data` 文件夹中的图片文件名 (例如，`my_background.gif`)。
+  - `picture` 参数应该是位于 `data` 文件夹中的图片文件名 (例如，`my_background.gif`)。
   - 如果背景图是 `.gif` 文件，生成的二维码也将是 `.gif` 文件。否则，它将是 `.png` 文件。
 - **响应 (JSON)**:
   ```json
@@ -130,6 +148,8 @@ images:
 - **响应**: 二维码图片 (PNG 或 GIF 格式)。
 
 myqr.run() 参数说明：
+
+**注意**：`data` 和 `qrcodes` 目录现在位于项目根目录下，而 `app.py` 位于 `server/` 目录下。
 
 
 | 参数       | 描述                                       | 默认值                                                         |
