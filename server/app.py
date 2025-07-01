@@ -1,9 +1,8 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, send_from_directory
 from MyQR import myqr
 import os
 import uuid
 import yaml
-from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
 
@@ -107,19 +106,45 @@ def create_qrcode():
         }
         return _build_response(0, "QR Code created successfully", {"qrcode_id": qrcode_id, "qrcode_url": qrcode_url})
     except Exception as e:
-        return _build_response(500, str(e), status_code=500)
+        return _build_response(500, f"Error generating QR code: {str(e)}", status_code=500)
+
+@app.route('/qrcodes/<filename>', methods=['GET'])
+def get_qrcode(filename):
+    try:
+        qrcode_path = os.path.join('qrcodes', filename)
+        if os.path.exists(qrcode_path):
+            return send_file(qrcode_path, mimetype='image/png')
+        else:
+            return _build_response(404, "QR code not found", status_code=404)
+    except Exception as e:
+        return _build_response(500, f"Error retrieving QR code: {str(e)}", status_code=500)
 
 @app.route('/dcode/getqrcode/<qrcode_id>', methods=['GET'])
-def get_qrcode(qrcode_id):
+def get_qrcode_by_id(qrcode_id):
     qrcode_info = qrcodes.get(qrcode_id)
     if not qrcode_info:
         return _build_response(404, "QR Code not found")
 
-    filepath = qrcode_info['filepath']
-    if os.path.exists(filepath):
-        return send_file(filepath, mimetype=f'image/{qrcode_info["qrcode_url"].split(".")[-1]}')
+    filepath = qrcode_info.get('filepath')
+    if filepath and os.path.exists(filepath):
+        extension = qrcode_info.get('qrcode_url', '').split('.')[-1]
+        return send_file(filepath, mimetype=f'image/{extension}')
     else:
         return _build_response(404, "QR Code image file not found on server")
+
+@app.route('/data/<path:filename>')
+def serve_data(filename):
+    try:
+        return send_from_directory('qrcodes', filename)
+    except Exception as e:
+        return _build_response(500, f"Error serving file: {str(e)}", status_code=500)
+
+@app.route('/qrcodes/<path:filename>')
+def serve_qrcode(filename):
+    try:
+        return send_from_directory('qrcodes', filename)
+    except Exception as e:
+        return _build_response(500, f"Error serving file: {str(e)}", status_code=500)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
