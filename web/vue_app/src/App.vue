@@ -1,45 +1,6 @@
 <template>
   <div class="container">
     <h1>动态二维码生成器</h1>
-    <div class="form-group">
-      <div class="input-row">
-        <input
-          v-model="words"
-          type="text"
-          placeholder="请输入文字内容"
-          :disabled="isGenerating"
-        />
-        <select
-          v-model="selectedPicture"
-          :disabled="isGenerating"
-        >
-          <option value="">请选择动图</option>
-          <option
-            v-for="image in gifImages"
-            :key="image.id"
-            :value="image.name"
-          >
-            {{ image.name }}
-          </option>
-        </select>
-      </div>
-      <div class="button-group">
-        <button
-          @click="generateQrCode"
-          :disabled="isGenerating || !words || !selectedPicture"
-          class="generate-btn"
-        >
-          {{ isGenerating ? '生成中...' : '生成二维码' }}
-        </button>
-        <button
-          @click="resetForm"
-          :disabled="isGenerating || (!words && !selectedPicture && !qrcodeUrl)"
-          class="reset-btn"
-        >
-          重置
-        </button>
-      </div>
-    </div>
     <div class="qrcode-container">
       <img
         v-if="qrcodeUrl"
@@ -52,6 +13,45 @@
         class="placeholder"
       >
         二维码将显示在这里
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="input-row">
+        <input
+          v-model="words"
+          type="text"
+          placeholder="请输入文字内容"
+          :disabled="isGenerating"
+        />
+        <div class="select-wrapper">
+          <select
+            v-model="selectedPicture"
+            :disabled="isGenerating"
+          >
+            <option value="">请选择动图背景图</option>
+            <option
+              v-for="image in gifImages"
+              :key="image.id"
+              :value="image.name"
+            >
+              {{ image.name }}
+            </option>
+          </select>
+          <span
+            v-if="selectedPicture"
+            class="clear-select"
+            @click="selectedPicture = ''"
+          >X</span>
+        </div>
+      </div>
+      <div class="button-group">
+        <button
+          @click="generateQrCode"
+          :disabled="isGenerating || !words || !selectedPicture"
+          class="generate-btn"
+        >
+          {{ isGenerating ? '生成中...' : '生成二维码' }}
+        </button>
       </div>
     </div>
     <div
@@ -206,6 +206,9 @@ export default {
     });
 
     // 重置表单状态
+    // The reset functionality for selectedPicture is now handled by the 'X' button.
+    // The words input can be cleared manually by the user.
+    // qrcodeUrl is cleared when a new generation attempt starts.
     const resetForm = () => {
       words.value = '';
       selectedPicture.value = '';
@@ -247,86 +250,17 @@ h1 {
   margin-bottom: 30px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.input-row {
-  display: flex;
-  gap: 10px;
-}
-
-input {
-  flex: 2;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-select {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-.button-group {
-  display: flex;
-  gap: 10px;
-}
-
-.generate-btn {
-  flex: 2;
-  padding: 12px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
-}
-
-.reset-btn {
-  flex: 1;
-  padding: 12px 20px;
-  background-color: #ff9800;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
-}
-
-.generate-btn:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-.reset-btn:hover:not(:disabled) {
-  background-color: #f57c00;
-}
-
-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
 .qrcode-container {
   width: 100%;
+  max-width: 400px;
   height: 300px;
+  border: 1px dashed #ccc;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: white;
-  border-radius: 4px;
   margin-bottom: 20px;
-  border: 2px dashed #ddd;
+  overflow: hidden;
+  background-color: #f9f9f9;
 }
 
 .qrcode-container img {
@@ -335,23 +269,96 @@ button:disabled {
   object-fit: contain;
 }
 
-.placeholder {
-  color: #999;
+.qrcode-container .placeholder {
+  color: #888;
+  font-size: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 20px; /* Changed from margin-bottom */
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.input-row input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
   font-size: 16px;
 }
 
+.select-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.select-wrapper select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  appearance: none; /* Remove default select arrow */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 30px; /* Space for the X button */
+}
+
+.clear-select {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #999;
+  font-weight: bold;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+}
+
+.button-group button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.button-group button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.button-group button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
 .error-message {
-  color: #ff4444;
-  text-align: center;
+  color: red;
   margin-top: 10px;
   font-size: 14px;
-  padding: 10px;
-  border-radius: 4px;
-  background-color: #ffebee;
+  text-align: center;
 }
 
 .error-message.retrying {
-  color: #ff9800;
-  background-color: #fff3e0;
+  color: orange;
 }
 </style>
