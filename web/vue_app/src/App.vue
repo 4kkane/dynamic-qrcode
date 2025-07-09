@@ -1,63 +1,46 @@
 <template>
-  <div class="container">
-    <h1>动态二维码生成器</h1>
-    <div class="qrcode-container">
-      <img
-        v-if="qrcodeUrl"
-        :src="qrcodeUrl"
-        @error="handleImageError"
-        alt="二维码"
-      />
-      <div
-        v-else
-        class="placeholder"
-      >
-        二维码将显示在这里
-      </div>
+  <div id="app-container">
+    <div class="header">
+      <h1>动态二维码生成器</h1>
     </div>
-    <div class="form-group">
-      <div class="input-row">
-        <input
-          v-model="words"
-          type="text"
-          placeholder="请输入文字内容"
-          :disabled="isGenerating"
-        />
-        <div class="select-wrapper">
-          <select
-            v-model="selectedPicture"
-            :disabled="isGenerating"
-          >
-            <option value="">请选择动图背景图</option>
-            <option
-              v-for="image in gifImages"
-              :key="image.id"
-              :value="image.name"
-            >
-              {{ image.name }}
-            </option>
-          </select>
-          <span
-            v-if="selectedPicture"
-            class="clear-select"
-            @click="selectedPicture = ''"
-          >X</span>
+
+    <div class="content">
+      <div class="qrcode-display">
+        <img v-if="qrcodeUrl" :src="qrcodeUrl" @error="handleImageError" alt="二维码" class="qrcode-image" />
+        <div v-else class="placeholder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-qr-code"><path d="M3 3h6v6H3z"></path><path d="M15 3h6v6h-6z"></path><path d="M3 15h6v6H3z"></path><path d="M15 15h6v6h-6z"></path><path d="M3 9h18"></path><path d="M9 3v18"></path></svg>
+          <p>生成的二维码将显示在这里</p>
         </div>
       </div>
-      <div class="button-group">
-        <button
-          @click="generateQrCode"
-          :disabled="isGenerating || !words || !selectedPicture"
-          class="generate-btn"
-        >
-          {{ isGenerating ? '生成中...' : '生成二维码' }}
+
+      <div class="form-controls">
+        <div class="input-group">
+          <input v-model="words" type="text" placeholder="请输入文本或URL" :disabled="isGenerating" />
+        </div>
+
+        <div class="input-group">
+          <div class="select-container">
+            <select v-model="selectedPicture" :disabled="isGenerating">
+              <option value="" disabled>选择一个动图背景</option>
+              <option v-for="image in gifImages" :key="image.id" :value="image.name">
+                {{ image.name }}
+              </option>
+            </select>
+            <span v-if="selectedPicture" class="clear-selection" @click="selectedPicture = ''">×</span>
+          </div>
+        </div>
+
+        <button @click="generateQrCode" :disabled="isGenerating || !words || !selectedPicture" class="generate-button">
+          <span v-if="isGenerating">
+            <span class="spinner"></span>
+            生成中...
+          </span>
+          <span v-else>生成二维码</span>
         </button>
       </div>
     </div>
-    <div
-      v-if="errorMessage"
-      :class="['error-message', { 'retrying': errorMessage.includes('重试') }]"
-    >
+
+    <div v-if="errorMessage" class="error-message" :class="{ 'retrying': errorMessage.includes('重试') }">
       {{ errorMessage }}
     </div>
   </div>
@@ -74,8 +57,8 @@ export default {
     const qrcodeUrl = ref('');
     const errorMessage = ref('');
     const isGenerating = ref(false);
+    const timeoutIds = ref([]);
 
-    // 获取 GIF 图片列表
     const fetchGifImages = async () => {
       try {
         const response = await fetch('/dcode/list');
@@ -91,30 +74,11 @@ export default {
       }
     };
 
-    // 处理图片加载错误
-    const handleImageError = () => {
-      if (qrcodeUrl.value) {
-        errorMessage.value = '二维码图片加载失败，正在重试...';
-        // 延迟1秒后重试加载，添加时间戳避免缓存
-        createDelay(1000).then(() => {
-          const timestamp = new Date().getTime();
-          qrcodeUrl.value = `${qrcodeUrl.value}?t=${timestamp}`;
-        });
-      } else {
-        errorMessage.value = '二维码图片加载失败。';
-      }
-    };
-
-    // 存储定时器ID
-    const timeoutIds = ref([]);
-
-    // 清理所有定时器
     const clearAllTimeouts = () => {
       timeoutIds.value.forEach(id => clearTimeout(id));
       timeoutIds.value = [];
     };
 
-    // 创建可取消的延迟
     const createDelay = (ms) => {
       return new Promise((resolve) => {
         const id = setTimeout(resolve, ms);
@@ -122,7 +86,18 @@ export default {
       });
     };
 
-    // 检查图片URL是否可访问
+    const handleImageError = () => {
+      if (qrcodeUrl.value) {
+        errorMessage.value = '二维码图片加载失败，正在重试...';
+        createDelay(1000).then(() => {
+          const timestamp = new Date().getTime();
+          qrcodeUrl.value = `${qrcodeUrl.value.split('?')[0]}?t=${timestamp}`;
+        });
+      } else {
+        errorMessage.value = '二维码图片加载失败。';
+      }
+    };
+
     const checkImageUrl = async (url, retries = 3, delay = 1000) => {
       for (let i = 0; i < retries; i++) {
         try {
@@ -130,13 +105,11 @@ export default {
           if (response.ok) {
             return true;
           }
-          // 如果不是最后一次重试，则等待指定时间后继续
           if (i < retries - 1) {
             await createDelay(delay);
           }
         } catch (error) {
           console.error(`Error checking image URL (attempt ${i + 1}/${retries}):`, error);
-          // 如果不是最后一次重试，则等待指定时间后继续
           if (i < retries - 1) {
             await createDelay(delay);
           }
@@ -145,7 +118,6 @@ export default {
       return false;
     };
 
-    // 生成二维码
     const generateQrCode = async () => {
       errorMessage.value = '';
       qrcodeUrl.value = '';
@@ -160,7 +132,7 @@ export default {
       try {
         const requestBody = {
           words: words.value.trim(),
-          colorized: true // 默认着色
+          colorized: true,
         };
         if (selectedPicture.value) {
           requestBody.picture = selectedPicture.value;
@@ -168,19 +140,15 @@ export default {
 
         const response = await fetch('/dcode/createqrcode', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestBody)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
         });
 
         const data = await response.json();
 
         if (data.ret.code === 0 && data.body && data.body.qrcode_url) {
-          // 检查生成的二维码图片是否可访问（最多重试3次，每次间隔1秒）
           const isImageAccessible = await checkImageUrl(data.body.qrcode_url, 3, 1000);
           if (isImageAccessible) {
-            // 添加时间戳避免缓存
             const timestamp = new Date().getTime();
             qrcodeUrl.value = `${data.body.qrcode_url}?t=${timestamp}`;
           } else {
@@ -197,26 +165,8 @@ export default {
       }
     };
 
-    onMounted(() => {
-      fetchGifImages();
-    });
-
-    onUnmounted(() => {
-      clearAllTimeouts();
-    });
-
-    // 重置表单状态
-    // The reset functionality for selectedPicture is now handled by the 'X' button.
-    // The words input can be cleared manually by the user.
-    // qrcodeUrl is cleared when a new generation attempt starts.
-    const resetForm = () => {
-      words.value = '';
-      selectedPicture.value = '';
-      qrcodeUrl.value = '';
-      errorMessage.value = '';
-      isGenerating.value = false;
-      clearAllTimeouts();
-    };
+    onMounted(fetchGifImages);
+    onUnmounted(clearAllTimeouts);
 
     return {
       words,
@@ -224,141 +174,209 @@ export default {
       selectedPicture,
       qrcodeUrl,
       errorMessage,
-      generateQrCode,
-      handleImageError,
       isGenerating,
-      resetForm
+      handleImageError,
+      generateQrCode,
     };
-  }
+  },
 };
 </script>
 
-<style scoped>
-.container {
-  max-width: 600px;
+<style>
+:root {
+  --primary-color: #42b983;
+  --background-color: #f0f2f5;
+  --container-bg-color: #ffffff;
+  --text-color: #333;
+  --placeholder-color: #888;
+  --border-color: #e0e0e0;
+  --error-color: #ff4d4f;
+  --warning-color: #faad14;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+#app-container {
+  max-width: 480px;
   margin: 0 auto;
   padding: 20px;
-  font-family: Arial, sans-serif;
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
 }
 
-h1 {
+.header {
   text-align: center;
-  color: #333;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
-.qrcode-container {
+.header h1 {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.content {
+  background-color: var(--container-bg-color);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.qrcode-display {
   width: 100%;
-  max-width: 400px;
-  height: 300px;
-  border: 1px dashed #ccc;
+  padding-top: 100%; /* 1:1 Aspect Ratio */
+  position: relative;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  border: 1px dashed var(--border-color);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.qrcode-display .placeholder,
+.qrcode-display .qrcode-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  margin-bottom: 20px;
-  overflow: hidden;
-  background-color: #f9f9f9;
 }
 
-.qrcode-container img {
-  max-width: 100%;
-  max-height: 100%;
+.qrcode-display .placeholder {
+  color: var(--placeholder-color);
+  text-align: center;
+}
+
+.placeholder .feather {
+  color: #ccc;
+  margin-bottom: 8px;
+}
+
+.qrcode-image {
   object-fit: contain;
 }
 
-.qrcode-container .placeholder {
-  color: #888;
-  font-size: 18px;
+.form-controls .input-group {
+  margin-bottom: 16px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+.form-controls input,
+.form-controls select {
   width: 100%;
-  max-width: 400px;
-  margin-top: 20px; /* Changed from margin-bottom */
+  padding: 12px 16px;
+  font-size: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-sizing: border-box;
+  background-color: #fff;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-.input-row {
-  display: flex;
-  gap: 10px;
+.form-controls input:focus,
+.form-controls select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(66, 185, 131, 0.2);
 }
 
-.input-row input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 16px;
-}
-
-.select-wrapper {
+.select-container {
   position: relative;
-  flex: 1;
 }
 
-.select-wrapper select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 16px;
-  appearance: none; /* Remove default select arrow */
+.select-container select {
+  appearance: none;
   -webkit-appearance: none;
-  -moz-appearance: none;
-  padding-right: 30px; /* Space for the X button */
+  padding-right: 40px;
 }
 
-.clear-select {
+.select-container::after {
+  content: '▼';
   position: absolute;
-  right: 10px;
   top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--placeholder-color);
+  pointer-events: none;
+}
+
+.clear-selection {
+  position: absolute;
+  top: 50%;
+  right: 35px;
   transform: translateY(-50%);
   cursor: pointer;
-  color: #999;
+  font-size: 20px;
+  color: #ccc;
   font-weight: bold;
-  font-size: 14px;
-  line-height: 1;
+}
+.clear-selection:hover {
+  color: #999;
 }
 
-.button-group {
-  display: flex;
-  gap: 10px;
-}
-
-.button-group button {
-  flex: 1;
-  padding: 10px;
+.generate-button {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fff;
+  background-color: var(--primary-color);
   border: none;
-  border-radius: 5px;
-  background-color: #007bff;
-  color: white;
-  font-size: 16px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s, transform 0.1s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.button-group button:disabled {
-  background-color: #cccccc;
+.generate-button:hover:not(:disabled) {
+  background-color: #36a476;
+}
+
+.generate-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.generate-button:disabled {
+  background-color: #a5d6c4;
   cursor: not-allowed;
 }
 
-.button-group button:hover:not(:disabled) {
-  background-color: #0056b3;
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .error-message {
-  color: red;
-  margin-top: 10px;
-  font-size: 14px;
   text-align: center;
+  margin-top: 16px;
+  padding: 10px;
+  border-radius: 8px;
+  color: #fff;
+  background-color: var(--error-color);
 }
 
 .error-message.retrying {
-  color: orange;
+  background-color: var(--warning-color);
 }
 </style>

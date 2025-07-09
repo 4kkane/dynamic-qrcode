@@ -1,0 +1,9 @@
+feat: Refactor QR code generator page to be mobile-first
+
+This commit refactors the main App.vue component to provide a responsive, mobile-first user experience.
+
+Key changes:
+- Replaced the desktop-oriented layout with a flexible, single-column layout that adapts to smaller screen sizes.
+- Improved the styling of form controls (inputs, selects, buttons) for better usability on touch devices.
+- Introduced a clean, modern design with a refined color palette and typography.
+- The core application logic for interacting with the backend API remains unchanged.
